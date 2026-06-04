@@ -22,7 +22,7 @@
       "output": "static"
     },
     "plugins": [
-      "expo-router",
+      "expo-router", "react-native-maps",
       [
         "expo-splash-screen",
         {
