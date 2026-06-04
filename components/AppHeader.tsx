@@ -21,7 +21,7 @@ export function AppHeader() {
       <View style={styles.inner}>
         <View style={styles.logoArea}>
           <Image
-            source={require('../assets/images/logo.png')}
+            source={require('../assets/images/icon.png')}
             style={styles.logo}
             resizeMode="contain"
           />
