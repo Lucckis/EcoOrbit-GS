@@ -1,15 +1,30 @@
-import { Stack } from "expo-router";
-import "react-native-reanimated";
+import { useEffect } from 'react';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
+import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 
-export default function RootLayout() {
-  return <RootLayoutNav />;
+SplashScreen.preventAutoHideAsync();
+
+function AppContent() {
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+
+  return (
+    <>
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+      <Stack screenOptions={{ headerShown: false }} />
+    </>
+  );
 }
 
-function RootLayoutNav() {
+export default function RootLayout() {
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-    </Stack>
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
