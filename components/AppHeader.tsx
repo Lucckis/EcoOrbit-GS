@@ -21,7 +21,7 @@ export function AppHeader() {
       <View style={styles.inner}>
         <View style={styles.logoArea}>
           <Image
-            source={require('../assets/images/EcoOrbit.jpeg')}
+            source={require('../assets/images/EcoOrbit.png')}
             style={styles.logo}
             resizeMode="contain"
           />
