@@ -66,8 +66,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   logo: {
-    height: 30,
-    width: 150,
+    height: 50,
+    width: 170,
   },
   toggleBtn: {
     width: 36,
