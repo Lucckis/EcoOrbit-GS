@@ -1,20 +1,27 @@
 import { useTheme } from "@/context/ThemeContext";
+import type { AnalyzeResponse } from "@/services/api";
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface LocationBannerProps {
   latitude: number;
   longitude: number;
   timestamp: Date;
   onClose: () => void;
+  onRetry?: () => void;
+  // Estados da mutation
+  isPending?: boolean;
+  isError?: boolean;
+  result?: AnalyzeResponse;
 }
 
-interface DataItemProps {
-  label: string;
-  value: string;
-}
-
-function DataItem({ label, value }: DataItemProps) {
+function DataItem({ label, value }: { label: string; value: string }) {
   const { colors } = useTheme();
   return (
     <View style={styles.dataItem}>
@@ -28,11 +35,98 @@ function DataItem({ label, value }: DataItemProps) {
   );
 }
 
+function RiskResult({
+  result,
+  onRetry,
+  isError,
+}: {
+  result?: AnalyzeResponse;
+  onRetry?: () => void;
+  isError?: boolean;
+}) {
+  const { colors } = useTheme();
+
+  if (isError) {
+    return (
+      <View
+        style={[
+          styles.riskRow,
+          {
+            backgroundColor: colors.accent + "20",
+            borderColor: colors.accent + "40",
+          },
+        ]}
+      >
+        <Ionicons name="wifi-outline" size={16} color={colors.accent} />
+        <Text style={[styles.riskText, { color: colors.accent, flex: 1 }]}>
+          Falha ao consultar a API
+        </Text>
+        {onRetry && (
+          <TouchableOpacity
+            onPress={onRetry}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={[styles.retryText, { color: colors.accent }]}>
+              Tentar novamente
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  if (!result) return null;
+
+  const confidence = result.confidencePercentage ?? 0;
+  const riskColor = !result.fireDetected
+    ? colors.primary // verde — seguro
+    : confidence >= 70
+      ? colors.accent
+      : colors.accentOrange;
+
+  const riskIcon: "checkmark-circle" | "warning" | "flame" = result.fireDetected
+    ? confidence >= 70
+      ? "flame"
+      : "warning"
+    : "checkmark-circle";
+
+  const riskLabel = result.fireDetected
+    ? confidence >= 70
+      ? "Risco Alto Detectado"
+      : "Risco Moderado"
+    : "Área sem Risco";
+
+  return (
+    <View
+      style={[
+        styles.riskRow,
+        { backgroundColor: riskColor + "22", borderColor: riskColor + "50" },
+      ]}
+    >
+      <Ionicons name={riskIcon} size={18} color={riskColor} />
+      <Text style={[styles.riskText, { color: riskColor, fontWeight: "700" }]}>
+        {riskLabel}
+      </Text>
+      <View
+        style={[styles.confidencePill, { backgroundColor: riskColor + "30" }]}
+      >
+        <Text style={[styles.confidenceText, { color: riskColor }]}>
+          {confidence.toFixed(1)}%
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 export function LocationBanner({
   latitude,
   longitude,
   timestamp,
   onClose,
+  onRetry,
+  isPending,
+  isError,
+  result,
 }: LocationBannerProps) {
   const { colors } = useTheme();
 
@@ -51,12 +145,10 @@ export function LocationBanner({
     <View
       style={[
         styles.container,
-        {
-          backgroundColor: colors.bannerBg,
-          borderTopColor: colors.primary,
-        },
+        { backgroundColor: colors.bannerBg, borderTopColor: colors.primary },
       ]}
     >
+      {/* Cabeçalho */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={[styles.dot, { backgroundColor: colors.primary }]} />
@@ -67,7 +159,7 @@ export function LocationBanner({
         <TouchableOpacity
           onPress={onClose}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Fechar"
+          accessibilityLabel="Fechar banner"
         >
           <Ionicons
             name="close-circle-outline"
@@ -82,6 +174,19 @@ export function LocationBanner({
         <DataItem label="Longitude" value={`${longitude.toFixed(6)}°`} />
         <DataItem label="Data" value={formattedDate} />
         <DataItem label="Horário" value={formattedTime} />
+      </View>
+
+      <View style={styles.riskSection}>
+        {isPending ? (
+          <View style={[styles.riskRow, { backgroundColor: colors.surface }]}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.riskText, { color: colors.textSecondary }]}>
+              Analisando risco com IA...
+            </Text>
+          </View>
+        ) : (
+          <RiskResult result={result} isError={isError} onRetry={onRetry} />
+        )}
       </View>
     </View>
   );
@@ -120,7 +225,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     rowGap: 8,
-    columnGap: 0,
+    marginBottom: 10,
   },
   dataItem: {
     width: "50%",
@@ -135,5 +240,35 @@ const styles = StyleSheet.create({
   dataValue: {
     fontSize: 14,
     fontWeight: "700",
+  },
+  riskSection: {
+    marginTop: 2,
+  },
+  riskRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  riskText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  confidencePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  confidenceText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  retryText: {
+    fontSize: 12,
+    fontWeight: "700",
+    textDecorationLine: "underline",
   },
 });

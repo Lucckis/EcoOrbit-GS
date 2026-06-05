@@ -1,4 +1,6 @@
 import { useTheme } from "@/context/ThemeContext";
+import { analyzeRegion, toLocalDate } from "@/services/api";
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import MapView, {
@@ -36,6 +38,10 @@ export function SatelliteMap() {
 
   const [modalVisible, setModalVisible] = useState(false);
 
+  const analyzeMutation = useMutation({
+    mutationFn: analyzeRegion,
+  });
+
   const handleMapPress = (e: MapPressEvent) => {
     const { latitude, longitude } = e.nativeEvent.coordinate;
     setPendingCoord({ latitude, longitude });
@@ -43,13 +49,22 @@ export function SatelliteMap() {
   };
 
   const handleConfirm = () => {
-    if (pendingCoord) {
-      setSelectedLocation({
-        ...pendingCoord,
-        timestamp: new Date(),
-      });
-    }
+    if (!pendingCoord) return;
+
+    const location: SelectedLocation = {
+      ...pendingCoord,
+      timestamp: new Date(),
+    };
+
+    setSelectedLocation(location);
     setModalVisible(false);
+
+    analyzeMutation.mutate({
+      lat: pendingCoord.latitude,
+      lon: pendingCoord.longitude,
+      data: toLocalDate(new Date()),
+    });
+
     setPendingCoord(null);
   };
 
@@ -60,6 +75,16 @@ export function SatelliteMap() {
 
   const handleCloseBanner = () => {
     setSelectedLocation(null);
+    analyzeMutation.reset();
+  };
+
+  const handleRetry = () => {
+    if (!selectedLocation) return;
+    analyzeMutation.mutate({
+      lat: selectedLocation.latitude,
+      lon: selectedLocation.longitude,
+      data: toLocalDate(selectedLocation.timestamp),
+    });
   };
 
   return (
@@ -82,9 +107,17 @@ export function SatelliteMap() {
               latitude: selectedLocation.latitude,
               longitude: selectedLocation.longitude,
             }}
-            pinColor={colors.primary}
-            title="Ponto selecionado"
-            description={`${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}`}
+            pinColor={
+              analyzeMutation.data?.fireDetected
+                ? colors.accent
+                : colors.primary
+            }
+            title="Ponto analisado"
+            description={
+              analyzeMutation.data
+                ? `${analyzeMutation.data.fireDetected ? "🔥 Risco" : "✅ Seguro"} — ${analyzeMutation.data.confidencePercentage?.toFixed(1)}%`
+                : "Analisando..."
+            }
           />
         )}
       </MapView>
@@ -95,6 +128,10 @@ export function SatelliteMap() {
           longitude={selectedLocation.longitude}
           timestamp={selectedLocation.timestamp}
           onClose={handleCloseBanner}
+          onRetry={handleRetry}
+          isPending={analyzeMutation.isPending}
+          isError={analyzeMutation.isError}
+          result={analyzeMutation.data}
         />
       )}
 
