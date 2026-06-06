@@ -10,9 +10,9 @@
 //  Em produção, substitua os BASE_URLs pelo endereço real do servidor.
 // ═══════════════════════════════════════════════════════════════
 
-const USUARIO_API = 'http://localhost:8080';
-const IA_API      = 'http://localhost:8082';
-const PREDICT_API = 'http://localhost:8083';
+const USUARIO_API = 'http://10.0.2.2:8080';
+const IA_API      = 'http://10.0.2.2:8082';
+const PREDICT_API = 'http://10.0.2.2:8083';
 // Para dispositivo físico, use o IP da máquina na rede local:
 // const USUARIO_API = 'http://192.168.x.x:8080';
 
