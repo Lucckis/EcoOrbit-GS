@@ -57,7 +57,7 @@ export function AuthHero({ subtitle }: AuthHeroProps) {
       />
 
       <Image
-        source={require("../assets/images/logo.png")}
+        source={require("../assets/images/icon.png")}
         style={styles.logo}
         resizeMode="contain"
       />
