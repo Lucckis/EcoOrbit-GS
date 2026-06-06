@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   dotD: { width: 4, height: 4, bottom: 36, left: 110 },
   logo: {
     width: 200,
-    height: 48,
+    height: 88,
     marginBottom: 14,
   },
   pill: {
