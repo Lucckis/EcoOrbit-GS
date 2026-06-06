@@ -43,7 +43,7 @@ export function RegisterForm() {
   const handleSubmit = () => {
     if (!validate()) return;
     registerMutation.reset();
-    registerMutation.mutate({ nome: nome.trim(), email: email.trim(), senha });
+    registerMutation.mutate({ nome, email, senha });
   };
 
   const clearError = (field: keyof typeof fieldErrors) =>
