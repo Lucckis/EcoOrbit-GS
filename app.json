@@ -11,18 +11,24 @@
       "supportsTablet": true
     },
     "android": {
-      "config" : {"googleMaps": {"apiKey": "AIzaSyC9TLztfJX4dR-JmV-V1Vs_YRZ3Qy6mAkw"}},
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyC9TLztfJX4dR-JmV-V1Vs_YRZ3Qy6mAkw"
+        }
+      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.lucckis.EcoOrbit"
     },
     "web": {
       "bundler": "metro",
       "output": "static"
     },
     "plugins": [
-      "expo-router", "react-native-maps",
+      "expo-router",
+      "react-native-maps",
       [
         "expo-splash-screen",
         {
