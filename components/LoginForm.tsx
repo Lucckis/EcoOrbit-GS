@@ -1,6 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import { login } from "@/services/api";
+import { decodeJwtPayload, getUsuarios, login } from "@/services/api";
+import { getErrorMessage } from "@/services/axiosInstance";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
@@ -11,24 +12,44 @@ import { AppInput } from "./AppInput";
 
 export function LoginForm() {
   const { colors } = useTheme();
-  const { setToken } = useAuth();
+  const { setToken, setUser } = useAuth();
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
+  const [email, setSenhaEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
     senha?: string;
   }>({});
 
+  // ── Mutation ────────────────────────────────────────────────
   const loginMutation = useMutation({
-    mutationFn: login,
-    onSuccess: (data) => {
-      setToken(data.token);
+    mutationFn: async (payload: { email: string; senha: string }) => {
+      // 1. Faz o login → recebe o token
+      const loginData = await login(payload);
+
+      // 2. Sincroniza o token com o interceptor do axios
+      setToken(loginData.token);
+
+      // 3. Decodifica o JWT para pegar o email do usuário (campo "sub")
+      const jwtPayload = decodeJwtPayload(loginData.token);
+      const userEmail = jwtPayload?.sub as string | undefined;
+
+      // 4. Busca lista de usuários e localiza o atual
+      if (userEmail) {
+        const usuarios = await getUsuarios();
+        const found = usuarios.find((u) => u.email === userEmail);
+        if (found) setUser(found);
+      }
+
+      return loginData;
+    },
+    onSuccess: () => {
       router.replace("/(tabs)");
     },
   });
 
+  // ── Validação local ──────────────────────────────────────────
   const validate = (): boolean => {
     const errs: typeof fieldErrors = {};
     if (!email.trim()) errs.email = "Informe seu email";
@@ -44,13 +65,11 @@ export function LoginForm() {
     loginMutation.mutate({ email: email.trim(), senha });
   };
 
-  const clearError = (field: keyof typeof fieldErrors) =>
-    setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+  const clearError = (f: keyof typeof fieldErrors) =>
+    setFieldErrors((prev) => ({ ...prev, [f]: undefined }));
 
   const apiErrorMsg = loginMutation.isError
-    ? (loginMutation.error as Error).message.includes("401")
-      ? "Email ou senha incorretos."
-      : "Não foi possível conectar. Tente novamente."
+    ? getErrorMessage(loginMutation.error)
     : null;
 
   return (
@@ -62,12 +81,11 @@ export function LoginForm() {
         Faça login para continuar monitorando
       </Text>
 
-      {/* Campos */}
       <AppInput
         label="Email"
         value={email}
         onChangeText={(v) => {
-          setEmail(v);
+          setSenhaEmail(v);
           clearError("email");
         }}
         keyboardType="email-address"
@@ -90,7 +108,6 @@ export function LoginForm() {
         error={fieldErrors.senha}
       />
 
-      {/* Banner de erro da API */}
       {apiErrorMsg && (
         <View
           style={[
@@ -119,7 +136,6 @@ export function LoginForm() {
         icon="log-in-outline"
       />
 
-      {/* Link para cadastro */}
       <View style={styles.footer}>
         <Text style={[styles.footerText, { color: colors.textSecondary }]}>
           Não tem uma conta?{"  "}
@@ -138,21 +154,9 @@ export function LoginForm() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "800",
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 28,
-  },
+  container: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 24 },
+  title: { fontSize: 24, fontWeight: "800", marginBottom: 6 },
+  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: 28 },
   apiBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -163,21 +167,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 16,
   },
-  apiBannerText: {
-    fontSize: 13,
-    flex: 1,
-  },
+  apiBannerText: { fontSize: 13, flex: 1 },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     marginTop: 28,
   },
-  footerText: {
-    fontSize: 14,
-  },
-  footerLink: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
+  footerText: { fontSize: 14 },
+  footerLink: { fontSize: 14, fontWeight: "700" },
 });
