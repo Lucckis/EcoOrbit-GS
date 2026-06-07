@@ -1,86 +1,56 @@
-// ═══════════════════════════════════════════════════════════════
-//  EcoOrbit — Camada de acesso às APIs
-//
-//  Microserviços e portas:
-//    • ecoorbit_api_usuario  → porta 8080  (auth / usuários)
-//    • ecoorbit_api_ia       → porta 8082  (chat com IA, requer JWT)
-//    • ecoorbit_api_predict  → porta 8083  (análise de risco de incêndio)
-//    • ecoorbit_api_server   → porta 8761  (Eureka — uso interno)
-//
-//  Em produção, substitua os BASE_URLs pelo endereço real do servidor.
-// ═══════════════════════════════════════════════════════════════
-
-const USUARIO_API = 'http://10.0.2.2:8080';
-const IA_API      = 'http://10.0.2.2:8082';
-const PREDICT_API = 'http://10.0.2.2:8083';
-// Para dispositivo físico, use o IP da máquina na rede local:
-// const USUARIO_API = 'http://192.168.x.x:8080';
-
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`Erro ${res.status}${body ? `: ${body}` : ''}`);
-  }
-  return res.json() as Promise<T>;
-}
+import { iaClient, predictClient, usuarioClient } from "./axiosInstance";
 
 export function toLocalDate(date: Date): string {
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-// ══════════════════════════════════════════════════════════════
-//  1. AUTH  —  POST /auth/login  |  POST /auth/register
-// ══════════════════════════════════════════════════════════════
+export function decodeJwtPayload(
+  token: string,
+): Record<string, unknown> | null {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
 
+// Auth
 export interface LoginRequest {
   email: string;
   senha: string;
 }
-
 export interface LoginResponse {
   token: string;
 }
-
 export interface RegisterRequest {
   nome: string;
   email: string;
   senha: string;
 }
 
-export async function login(payload: LoginRequest): Promise<LoginResponse> {
-  const res = await fetch(`${USUARIO_API}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return handleResponse<LoginResponse>(res);
+// Usuários
+export interface UsuarioResponse {
+  id: number;
+  nome: string;
+  email: string;
+  role: string;
+}
+export interface AtualizarUsuarioRequest {
+  nome?: string;
+  email?: string;
+  senha?: string;
 }
 
-export async function register(payload: RegisterRequest): Promise<void> {
-  const res = await fetch(`${USUARIO_API}/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`Erro ${res.status}${body ? `: ${body}` : ''}`);
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-//  2. ANÁLISE DE RISCO  —  POST /analyze
-// ══════════════════════════════════════════════════════════════
-
+// Análise
 export interface AnalyzeRequest {
   lat: number;
   lon: number;
-  data: string; // "YYYY-MM-DD"
+  data: string;
 }
-
 export interface AnalyzeResponse {
   status: string;
   coordinates: { lat: number; lon: number };
@@ -89,104 +59,93 @@ export interface AnalyzeResponse {
   confidencePercentage: number;
 }
 
-export async function analyzeRegion(
-  payload: AnalyzeRequest
-): Promise<AnalyzeResponse> {
-  const res = await fetch(`${PREDICT_API}/analyze`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return handleResponse<AnalyzeResponse>(res);
-}
-
-// ══════════════════════════════════════════════════════════════
-//  3. CHAT COM IA  —  POST /ia/chat  |  GET /ia/chat/historico
-// ══════════════════════════════════════════════════════════════
-
+// Chat com IA
 export interface ChatRequest {
   pergunta: string;
 }
-
 export interface ChatResponse {
   pergunta: string;
   resposta: string;
 }
-
-export async function sendChat(
-  payload: ChatRequest,
-  token: string
-): Promise<ChatResponse> {
-  const res = await fetch(`${IA_API}/ia/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-  return handleResponse<ChatResponse>(res);
-}
-
-export async function getChatHistory(
-  token: string
-): Promise<Array<{ role: string; content: string }>> {
-  const res = await fetch(`${IA_API}/ia/chat/historico`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return handleResponse(res);
-}
-
-// ══════════════════════════════════════════════════════════════
-//  4. USUÁRIOS  —  GET/PUT/DELETE /usuarios
-// ══════════════════════════════════════════════════════════════
-
-export interface UsuarioResponse {
-  id: number;
-  nome: string;
-  email: string;
+export interface ChatHistoryItem {
   role: string;
+  content: string;
 }
 
-export interface AtualizarUsuarioRequest {
-  nome?: string;
-  email?: string;
-  senha?: string;
+// ══════════════════════════════════════════════════════════════
+//  1. AUTH  ─  porta 8080
+//  POST /auth/register  |  POST /auth/login
+// ══════════════════════════════════════════════════════════════
+
+export async function login(payload: LoginRequest): Promise<LoginResponse> {
+  const { data } = await usuarioClient.post<LoginResponse>(
+    "/auth/login",
+    payload,
+  );
+  return data;
 }
 
-export async function getUsuarioById(
-  id: number,
-  token: string
-): Promise<UsuarioResponse> {
-  const res = await fetch(`${USUARIO_API}/usuarios/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return handleResponse<UsuarioResponse>(res);
+export async function register(payload: RegisterRequest): Promise<void> {
+  await usuarioClient.post("/auth/register", payload);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  2. USUÁRIOS  ─  porta 8080
+//  GET /usuarios  |  GET /usuarios/{id}
+//  PUT /usuarios/{id}  |  DELETE /usuarios/{id}
+// ══════════════════════════════════════════════════════════════
+
+export async function getUsuarios(): Promise<UsuarioResponse[]> {
+  const { data } = await usuarioClient.get<UsuarioResponse[]>("/usuarios");
+  return data;
+}
+
+export async function getUsuarioById(id: number): Promise<UsuarioResponse> {
+  const { data } = await usuarioClient.get<UsuarioResponse>(`/usuarios/${id}`);
+  return data;
 }
 
 export async function updateUsuario(
   id: number,
   payload: AtualizarUsuarioRequest,
-  token: string
 ): Promise<UsuarioResponse> {
-  const res = await fetch(`${USUARIO_API}/usuarios/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-  return handleResponse<UsuarioResponse>(res);
+  const { data } = await usuarioClient.put<UsuarioResponse>(
+    `/usuarios/${id}`,
+    payload,
+  );
+  return data;
 }
 
-export async function deleteUsuario(id: number, token: string): Promise<void> {
-  const res = await fetch(`${USUARIO_API}/usuarios/${id}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`Erro ${res.status}${body ? `: ${body}` : ''}`);
-  }
+export async function deleteUsuario(id: number): Promise<void> {
+  await usuarioClient.delete(`/usuarios/${id}`);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  3. ANÁLISE DE RISCO  ─  porta 8083
+//  POST /analyze
+// ══════════════════════════════════════════════════════════════
+
+export async function analyzeRegion(
+  payload: AnalyzeRequest,
+): Promise<AnalyzeResponse> {
+  const { data } = await predictClient.post<AnalyzeResponse>(
+    "/analyze",
+    payload,
+  );
+  return data;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  4. CHAT COM IA  ─  porta 8082
+//  POST /ia/chat  |  GET /ia/chat/historico
+// ══════════════════════════════════════════════════════════════
+
+export async function sendChat(payload: ChatRequest): Promise<ChatResponse> {
+  const { data } = await iaClient.post<ChatResponse>("/ia/chat", payload);
+  return data;
+}
+
+export async function getChatHistory(): Promise<ChatHistoryItem[]> {
+  const { data } = await iaClient.get<ChatHistoryItem[]>("/ia/chat/historico");
+  return data;
 }
