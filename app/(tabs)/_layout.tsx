@@ -1,10 +1,20 @@
 import { AppHeader } from "@/components/AppHeader";
+import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
+import { useEffect } from "react";
 
 export default function TabLayout() {
   const { colors } = useTheme();
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace("/(auth)");
+    }
+  }, [isAuthenticated]);
 
   return (
     <Tabs

@@ -1,4 +1,4 @@
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
@@ -10,10 +10,13 @@ SplashScreen.preventAutoHideAsync();
 
 function AppContent() {
   const { theme } = useTheme();
+  const { isLoading } = useAuth();
 
   useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (!isLoading) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoading]);
 
   return (
     <>
@@ -28,13 +31,8 @@ export default function RootLayout() {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: {
-            staleTime: 1000 * 60 * 5,
-            retry: 2,
-          },
-          mutations: {
-            retry: 0,
-          },
+          queries: { staleTime: 1000 * 60 * 5, retry: 2 },
+          mutations: { retry: 0 },
         },
       }),
   );
