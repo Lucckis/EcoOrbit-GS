@@ -31,7 +31,21 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "react-native-maps"
+      "react-native-maps",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "packagingOptions": {
+              "pickFirst": [
+                "META-INF/LICENSE",
+                "META-INF/DEPENDENCIES",
+                "**/expo/modules/webview/BuildConfig.class"
+              ]
+            }
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
