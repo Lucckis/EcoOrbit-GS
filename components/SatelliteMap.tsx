@@ -1,14 +1,9 @@
 import { useTheme } from "@/context/ThemeContext";
 import { analyzeRegion, toLocalDate } from "@/services/api";
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
-import MapView, {
-  MapPressEvent,
-  Marker,
-  PROVIDER_DEFAULT,
-  PROVIDER_GOOGLE,
-} from "react-native-maps";
+import { useRef, useState } from "react";
+import { StyleSheet, View } from "react-native";
+import { WebView } from "react-native-webview";
 import { LocationBanner } from "./LocationBanner";
 import { LocationModal } from "./LocationModal";
 
@@ -18,15 +13,9 @@ interface SelectedLocation {
   timestamp: Date;
 }
 
-const INITIAL_REGION = {
-  latitude: -14.235,
-  longitude: -51.925,
-  latitudeDelta: 28,
-  longitudeDelta: 28,
-};
-
 export function SatelliteMap() {
   const { colors } = useTheme();
+  const webViewRef = useRef<WebView>(null);
 
   const [pendingCoord, setPendingCoord] = useState<{
     latitude: number;
@@ -42,22 +31,34 @@ export function SatelliteMap() {
     mutationFn: analyzeRegion,
   });
 
-  const handleMapPress = (e: MapPressEvent) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
-    setPendingCoord({ latitude, longitude });
-    setModalVisible(true);
+  const handleMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === "mapPress") {
+        setPendingCoord({ latitude: data.lat, longitude: data.lng });
+        setModalVisible(true);
+      }
+    } catch {}
   };
 
   const handleConfirm = () => {
     if (!pendingCoord) return;
-
     const location: SelectedLocation = {
       ...pendingCoord,
       timestamp: new Date(),
     };
-
     setSelectedLocation(location);
     setModalVisible(false);
+
+    // Adiciona marcador no mapa
+    webViewRef.current?.injectJavaScript(`
+      if(window.currentMarker) window.currentMarker.remove();
+      window.currentMarker = L.marker([${pendingCoord.latitude}, ${pendingCoord.longitude}])
+        .addTo(map)
+        .bindPopup("Analisando...")
+        .openPopup();
+      true;
+    `);
 
     analyzeMutation.mutate({
       lat: pendingCoord.latitude,
@@ -68,6 +69,18 @@ export function SatelliteMap() {
     setPendingCoord(null);
   };
 
+  // Atualiza popup do marcador quando análise terminar
+  if (analyzeMutation.isSuccess && analyzeMutation.data && selectedLocation) {
+    const result = analyzeMutation.data;
+    const popupText = result.fireDetected
+      ? `🔥 Risco — ${result.confidencePercentage?.toFixed(1)}%`
+      : `✅ Seguro — ${result.confidencePercentage?.toFixed(1)}%`;
+    webViewRef.current?.injectJavaScript(`
+      if(window.currentMarker) window.currentMarker.setPopupContent("${popupText}");
+      true;
+    `);
+  }
+
   const handleCancel = () => {
     setModalVisible(false);
     setPendingCoord(null);
@@ -76,6 +89,10 @@ export function SatelliteMap() {
   const handleCloseBanner = () => {
     setSelectedLocation(null);
     analyzeMutation.reset();
+    webViewRef.current?.injectJavaScript(`
+      if(window.currentMarker) { window.currentMarker.remove(); window.currentMarker = null; }
+      true;
+    `);
   };
 
   const handleRetry = () => {
@@ -87,40 +104,53 @@ export function SatelliteMap() {
     });
   };
 
+  const leafletHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    const map = L.map('map').setView([-14.235, -51.925], 4);
+
+    // Camada satélite via Esri (gratuita, sem API key)
+    L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { attribution: 'Tiles &copy; Esri', maxZoom: 19 }
+    ).addTo(map);
+
+    window.currentMarker = null;
+
+    map.on('click', function(e) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'mapPress',
+        lat: e.latlng.lat,
+        lng: e.latlng.lng
+      }));
+    });
+  </script>
+</body>
+</html>
+  `;
+
   return (
     <View style={styles.container}>
-      <MapView
+      <WebView
+        ref={webViewRef}
         style={styles.map}
-        provider={
-          Platform.OS === "android" ? PROVIDER_GOOGLE : PROVIDER_DEFAULT
-        }
-        mapType="satellite"
-        initialRegion={INITIAL_REGION}
-        onPress={handleMapPress}
-        showsUserLocation
-        showsMyLocationButton
-        showsCompass
-      >
-        {selectedLocation && (
-          <Marker
-            coordinate={{
-              latitude: selectedLocation.latitude,
-              longitude: selectedLocation.longitude,
-            }}
-            pinColor={
-              analyzeMutation.data?.fireDetected
-                ? colors.accent
-                : colors.primary
-            }
-            title="Ponto analisado"
-            description={
-              analyzeMutation.data
-                ? `${analyzeMutation.data.fireDetected ? "🔥 Risco" : "✅ Seguro"} — ${analyzeMutation.data.confidencePercentage?.toFixed(1)}%`
-                : "Analisando..."
-            }
-          />
-        )}
-      </MapView>
+        source={{ html: leafletHTML }}
+        onMessage={handleMessage}
+        javaScriptEnabled
+        originWhitelist={["*"]}
+      />
 
       {selectedLocation && (
         <LocationBanner
@@ -147,10 +177,6 @@ export function SatelliteMap() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  map: { flex: 1 },
 });

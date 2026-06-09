@@ -11,11 +11,6 @@
       "supportsTablet": true
     },
     "android": {
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyC9TLztfJX4dR-JmV-V1Vs_YRZ3Qy6mAkw"
-        }
-      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
       },
@@ -35,7 +30,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "react-native-maps"
     ],
     "experiments": {
       "typedRoutes": true

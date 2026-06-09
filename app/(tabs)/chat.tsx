@@ -15,7 +15,7 @@ import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 function historyToMessages(history: ChatHistoryItem[]): Message[] {
   return history.map((item, i) => ({
     id: `hist-${i}`,
-    type: (item.role === "user" ? "user" : "bot") as "user" | "bot",
+    type: (item.role === "user" ? "user" : "assistant") as "user" | "assistant",
     text: item.content,
     timestamp: new Date(),
   }));
@@ -24,7 +24,7 @@ function historyToMessages(history: ChatHistoryItem[]): Message[] {
 // ── Mensagem de boas-vindas ────────────────────────────────────
 const WELCOME: Message = {
   id: "welcome",
-  type: "bot",
+  type: "assistant",
   text: "👋 Olá! Sou o assistente ambiental do EcoOrbit. Posso responder dúvidas sobre risco de incêndio, clima e preservação ambiental. Como posso ajudar?",
   timestamp: new Date(),
 };
@@ -61,8 +61,8 @@ export default function ChatScreen() {
       setMessages((prev) => [
         ...prev,
         {
-          id: `bot-${Date.now()}`,
-          type: "bot",
+          id: `assistant-${Date.now()}`,
+          type: "assistant",
           text: data.resposta,
           timestamp: new Date(),
         },
@@ -73,7 +73,7 @@ export default function ChatScreen() {
         ...prev,
         {
           id: `err-${Date.now()}`,
-          type: "bot",
+          type: "assistant",
           text: `⚠️ ${getErrorMessage(err)}`,
           timestamp: new Date(),
         },

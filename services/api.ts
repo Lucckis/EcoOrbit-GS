@@ -73,7 +73,7 @@ export interface ChatHistoryItem {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  1. AUTH  ─  porta 8080
+//  1. AUTH
 //  POST /auth/register  |  POST /auth/login
 // ══════════════════════════════════════════════════════════════
 
@@ -90,7 +90,7 @@ export async function register(payload: RegisterRequest): Promise<void> {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  2. USUÁRIOS  ─  porta 8080
+//  2. USUÁRIOS
 //  GET /usuarios  |  GET /usuarios/{id}
 //  PUT /usuarios/{id}  |  DELETE /usuarios/{id}
 // ══════════════════════════════════════════════════════════════
@@ -121,7 +121,7 @@ export async function deleteUsuario(id: number): Promise<void> {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  3. ANÁLISE DE RISCO  ─  porta 8083
+//  3. ANÁLISE DE RISCO
 //  POST /analyze
 // ══════════════════════════════════════════════════════════════
 
@@ -136,7 +136,7 @@ export async function analyzeRegion(
 }
 
 // ══════════════════════════════════════════════════════════════
-//  4. CHAT COM IA  ─  porta 8082
+//  4. CHAT COM IA
 //  POST /ia/chat  |  GET /ia/chat/historico
 // ══════════════════════════════════════════════════════════════
 

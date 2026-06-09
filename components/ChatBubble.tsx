@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 export interface Message {
   id: string;
-  type: "user" | "bot";
+  type: "user" | "assistant";
   text: string;
   timestamp: Date;
 }
