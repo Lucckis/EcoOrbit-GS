@@ -131,6 +131,12 @@ API da EcoOrbit: https://github.com/vinikenzo/EcoOrbit-API
 
 ---
 
+## Download do APK
+
+Link do download: https://expo.dev/accounts/lucckis/projects/EcoOrbit/builds/6d936689-d6b1-4b5b-be97-42d4ec5d93ad
+
+---
+
 ## Licença
 
 Este projeto está licenciado sob a licença **MIT**. Consulte o arquivo [LICENSE](./LICENSE) para mais detalhes.
